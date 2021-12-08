@@ -1,0 +1,48 @@
+name: Build-and-Test
+
+on: [push]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Nightly Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+          override: true
+
+      - name: Install Utilities
+        run: |
+          cargo install cargo2junit
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: Check Formatting
+        run: |
+          cargo fmt --all -- --check
+
+      - name: Install Neovim
+        run: |
+          choco install -y neovim
+
+      - name: Test
+        env:
+          NEOVIM_BIN: "C:/tools/neovim/Neovim/bin/nvim.exe"
+          RUST_BACKTRACE: full
+        run: |
+          cargo test -- -- -Z unstable-options --format json | cargo2junit > results.xml
+
+      - name: Build Release
+        run: |
+          cargo build --release
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: neovide-windows
+          path: ./target/release/neovide.exe
